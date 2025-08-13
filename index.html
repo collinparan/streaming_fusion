@@ -78,19 +78,19 @@ async function loadLibraries(){
   const hud = document.getElementById('hud');
   const trySeq = async (arr) => { for (const url of arr){ try { await loadScript(url); return; } catch(e){ console.warn(e);} } throw new Error('All sources failed for '+arr[0]); };
 
-  await trySeq(['https://unpkg.com/d3@7/dist/d3.min.js']);
-  await trySeq(['https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js']);
-  await trySeq(['https://unpkg.com/three@0.157.0/build/three.min.js']);
+  await trySeq(['https://unpkg.com/d3@7/dist/d3.min.js','https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js']);
+  await trySeq(['https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js','https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js']);
+  await trySeq(['https://unpkg.com/three@0.158.0/build/three.min.js','https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js']);
   if (!window.THREE) throw new Error('THREE not found after load');
-  await trySeq(['https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js']);
+  await trySeq(['https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js','https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.3/dist/3d-force-graph.min.js']);
   if (!window.ForceGraph3D) throw new Error('ForceGraph3D not found after load');
 
   const optional = [
-    'https://unpkg.com/three@0.91.0/examples/js/postprocessing/EffectComposer.js',
-    'https://unpkg.com/three@0.157.0/examples/jsm/postprocessing/RenderPass.js',
-    'https://unpkg.com/three@0.91.0/examples/js/postprocessing/UnrealBloomPass.js',
-    'https://unpkg.com/three@0.91.0/examples/js/shaders/CopyShader.js',
-    'https://unpkg.com/three@0.91.0/examples/js/shaders/LuminosityHighPassShader.js'
+    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/EffectComposer.js',
+    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/RenderPass.js',
+    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/UnrealBloomPass.js',
+    'https://unpkg.com/three@0.158.0/examples/js/shaders/CopyShader.js',
+    'https://unpkg.com/three@0.158.0/examples/js/shaders/LuminosityHighPassShader.js'
   ];
   for (const url of optional){ try { await loadScript(url); } catch(e){ console.warn('Optional lib failed:', url); } }
   hud.textContent = 'Incoming events';
@@ -323,22 +323,50 @@ async function main(){
       }
     }
 
-    const G = ForceGraph3D()(scene3d)
-      .backgroundColor('#000')
-      .nodeOpacity(0.95)
-      .linkOpacity(0.45)
-      .linkWidth(l => l.fused? 1.4 : 0.6)
-      .linkColor(l => l.fused? '#9ad7ff' : 'rgba(200,200,255,0.25)')
-      .nodeThreeObject(node => {
-        const geom = new THREE.SphereGeometry(node.core ? 7 : 4, 16, 16);
-        const mat = new THREE.MeshLambertMaterial({ color: node.color, emissive: node.core ? 0x223355 : 0x111120, transparent:true, opacity:node.core?0.95:0.85});
-        const mesh = new THREE.Mesh(geom, mat);
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xffffff }));
-        sprite.scale.set(10, 5, 1);
-        mesh.add(sprite); // Add sprite label to each node mesh
-        return mesh;
-      })
-      .cameraPosition({x:0,y:0,z:110});
+    // --- label helpers (agents.html-style canvas text sprites)
+function makeTextTexture(text, opts){
+  const options = Object.assign({ font: '14px Arial', fill: '#FFFFFF', padding: 6, stroke: 'rgba(0,0,0,0.6)', strokeWidth: 4 }, opts||{});
+  const ctx2d = document.createElement('canvas').getContext('2d');
+  ctx2d.font = options.font;
+  const metrics = ctx2d.measureText(text);
+  const textW = Math.ceil(metrics.width);
+  const textH = Math.ceil(parseInt(options.font, 10) * 1.35);
+  const w = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textW + options.padding * 2))));
+  const h = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textH + options.padding * 2))));
+  ctx2d.canvas.width = w; ctx2d.canvas.height = h;
+  ctx2d.font = options.font; ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'middle';
+  if (options.stroke && options.strokeWidth) { ctx2d.strokeStyle = options.stroke; ctx2d.lineWidth = options.strokeWidth; ctx2d.strokeText(text, w/2, h/2); }
+  ctx2d.fillStyle = options.fill; ctx2d.fillText(text, w/2, h/2);
+  const tex = new THREE.CanvasTexture(ctx2d.canvas);
+  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  return { texture: tex, w, h };
+}
+
+const G = ForceGraph3D()(scene3d)
+  .backgroundColor('#000')
+  .nodeOpacity(0.95)
+  .linkOpacity(0.45)
+  .linkWidth(l => l.fused? 1.4 : 0.6)
+  .linkColor(l => l.fused? '#9ad7ff' : 'rgba(200,200,255,0.25)')
+  .nodeThreeObject(node => {
+    const geom = new THREE.SphereGeometry(node.core ? 7 : 4, 16, 16);
+    const mat = new THREE.MeshLambertMaterial({ color: node.color, emissive: node.core ? 0x223355 : 0x111120, transparent:true, opacity:node.core?0.95:0.85});
+    const mesh = new THREE.Mesh(geom, mat);
+    // agents.html-style persistent label using a canvas texture sprite
+    const labelText = (node.label || node.id || '').toString();
+    if (labelText) {
+      const { texture, w, h } = makeTextTexture(labelText, { font: node.core ? '16px Arial' : '14px Arial', fill: '#FFFFFF' });
+      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+      const worldPerPixel = 0.12; // controls label size in world units
+      sprite.scale.set(w * worldPerPixel, h * worldPerPixel, 1);
+      sprite.position.set(0, node.core ? 11 : 8, 0);
+      mesh.add(sprite);
+    }
+    return mesh;
+  })
+  .nodeLabel(n => n.label || n.id)
+  .onNodeDragEnd(node => { node.fx = node.x; node.fy = node.y; node.fz = node.z; })
+  .cameraPosition({x:0,y:0,z:110});
 
     __G = G;
 
