@@ -86,12 +86,13 @@ async function loadLibraries(){
   if (!window.ForceGraph3D) throw new Error('ForceGraph3D not found after load');
 
   const optional = [
-    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/EffectComposer.js',
-    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/RenderPass.js',
-    'https://unpkg.com/three@0.158.0/examples/js/postprocessing/UnrealBloomPass.js',
-    'https://unpkg.com/three@0.158.0/examples/js/shaders/CopyShader.js',
-    'https://unpkg.com/three@0.158.0/examples/js/shaders/LuminosityHighPassShader.js'
+    'https://unpkg.com/three@0.91.0/examples/js/postprocessing/EffectComposer.js',
+    'https://unpkg.com/three@0.157.0/examples/jsm/postprocessing/RenderPass.js',
+    'https://unpkg.com/three@0.91.0/examples/js/postprocessing/UnrealBloomPass.js',
+    'https://unpkg.com/three@0.91.0/examples/js/shaders/CopyShader.js',
+    'https://unpkg.com/three@0.91.0/examples/js/shaders/LuminosityHighPassShader.js'
   ];
+  
   for (const url of optional){ try { await loadScript(url); } catch(e){ console.warn('Optional lib failed:', url); } }
   hud.textContent = 'Incoming events';
 }
