@@ -5,16 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Data Fusion Zoom — Particles ➜ Molecule Graph</title>
   <style>
-    :root{
-      --bg: #0d0f14; --fg:#d0d4dc; --muted:#7d87a3; --accent:#57b6ff; --accent2:#b389ff;
-    }
+    :root{ --bg:#0d0f14; --fg:#d0d4dc; --muted:#7d87a3; --accent:#57b6ff; --accent2:#b389ff; }
     html,body{height:100%;}
-    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,sans-serif;overflow:hidden; padding-top:60px;}
+    body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;padding-top:60px;}
 
-    /* Full-width fixed header (Bootstrap-ish layout) */
+    /* Full-width fixed header */
     .header{position:fixed;top:0;left:0;right:0;height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;z-index:1000;background:linear-gradient(to bottom, rgba(13,15,20,.95), rgba(13,15,20,.75));backdrop-filter:blur(6px);border-bottom:1px solid #222a38}
     .brand{display:flex;align-items:center;gap:10px}
-    .brand .logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg, var(--accent), var(--accent2));box-shadow:0 0 12px rgba(87,182,255,.35)}
+    .brand .logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 0 12px rgba(87,182,255,.35)}
     .brand .title{font-size:14px;color:#9fb0c9;letter-spacing:.06em;text-transform:uppercase}
     .controls{display:flex;gap:8px;align-items:center}
     .btn{appearance:none;border:1px solid #2a3242;background:#0f131b;color:#c9d3e1;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer}
@@ -22,23 +20,23 @@
     .btn[disabled]{opacity:.6;cursor:not-allowed}
 
     .stage{position:relative;width:1200px;max-width:92vw;height:720px;max-height:75vh;margin:16px auto;border-radius:12px;background:radial-gradient(1200px 720px at 50% 50%, #11151e 0%, #0b0e13 60%, #080a0e 100%);box-shadow:0 10px 40px rgba(0,0,0,.45);}
-    /* Wrapper so we can camera‑dolly (translate+scale) the whole 2D scene */
-    .flowPane{position:absolute;inset:0;transform-origin:0 0; will-change: transform}
+    .flowPane{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
     canvas, svg{position:absolute;inset:0;display:block}
     .hud{position:absolute;right:14px;bottom:10px;font-size:12px;color:var(--muted);letter-spacing:.03em;user-select:none;z-index:10}
+
     .link{fill:none;stroke:rgba(255,255,255,.08);mix-blend-mode:screen}
 
-    /* Zoom wipe (expanding circle) */
+    /* Zoom wipe */
     .zoom-wipe{position:absolute;left:0;top:0;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 50% 50%, rgba(130,190,255,.95), rgba(40,100,255,.25) 60%, rgba(0,0,0,.0) 70%);pointer-events:none;transform:translate(-1000px,-1000px) scale(0.2);opacity:0;transition:transform .9s cubic-bezier(.2,.75,.15,1), opacity .5s ease-out;z-index:40}
     .wipe-active{opacity:1}
 
-    /* Overlay for 3D scene */
+    /* 3D scene */
     #scene3d{position:absolute;inset:0;display:none;z-index:20}
     #scene3d.show{display:block}
   </style>
 </head>
 <body>
-  <!-- Fixed, edge-to-edge header -->
+  <!-- Fixed header -->
   <div class="header">
     <div class="brand">
       <div class="logo" aria-hidden="true"></div>
@@ -48,7 +46,7 @@
       <button class="btn" id="btnZoom" disabled>Zoom into two particles</button>
       <button class="btn" id="btnBack" disabled>Back to stream</button>
       <button class="btn" id="btnReset">Reset</button>
-      <button class="btn" id="btnTest" disabled>Run self‑test</button>
+      <button class="btn" id="btnTest" disabled>Run self-test</button>
     </div>
   </div>
 
@@ -62,12 +60,11 @@
     <div id="scene3d"></div>
   </div>
 
-<!-- Loader keeps order to avoid THREE race conditions -->
 <script>
 function loadScript(src){
   return new Promise((resolve, reject) => {
     const s = document.createElement('script');
-    s.src = src; s.async = false; // preserve order
+    s.src = src; s.async = false;
     s.onload = () => resolve(src);
     s.onerror = () => reject(new Error('Failed to load '+src));
     document.head.appendChild(s);
@@ -78,6 +75,7 @@ async function loadLibraries(){
   const hud = document.getElementById('hud');
   const trySeq = async (arr) => { for (const url of arr){ try { await loadScript(url); return; } catch(e){ console.warn(e);} } throw new Error('All sources failed for '+arr[0]); };
 
+  // versions unchanged
   await trySeq(['https://unpkg.com/d3@7/dist/d3.min.js','https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js']);
   await trySeq(['https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js','https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js']);
   await trySeq(['https://unpkg.com/three@0.158.0/build/three.min.js','https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js']);
@@ -92,7 +90,6 @@ async function loadLibraries(){
     'https://unpkg.com/three@0.91.0/examples/js/shaders/CopyShader.js',
     'https://unpkg.com/three@0.91.0/examples/js/shaders/LuminosityHighPassShader.js'
   ];
-  
   for (const url of optional){ try { await loadScript(url); } catch(e){ console.warn('Optional lib failed:', url); } }
   hud.textContent = 'Incoming events';
 }
@@ -118,76 +115,171 @@ async function main(){
 
   btnZoom.disabled = false; btnTest.disabled = false;
 
+  // --- Sankey data: multiple sources -> Fusion Core ---
   const sankeyData = {
     nodes: [
-      { name: 'Telemetry' },
-      { name: 'NOTAMs' },
-      { name: 'Press' },
-      { name: 'Social' },
+      { name: 'Telemetry' },       // MASINT
+      { name: 'NOTAMs' },          // GEOINT
+      { name: 'Press' },           // OSINT
+      { name: 'Social' },          // OSINT
+      { name: 'Signals' },         // SIGINT
+      { name: 'Imagery' },         // IMINT
+      { name: 'Human Reports' },   // HUMINT
+      { name: 'Cyber' },           // CYBINT
       { name: 'Fusion Core' }
     ],
     links: [
-      { source: 0, target: 4, value: 8 },
-      { source: 1, target: 4, value: 5 },
-      { source: 2, target: 4, value: 6 },
-      { source: 3, target: 4, value: 3 }
+      { source: 0, target: 8, value: 9 },  // Telemetry → Core
+      { source: 1, target: 8, value: 6 },  // NOTAMs
+      { source: 2, target: 8, value: 10 }, // Press
+      { source: 3, target: 8, value: 7 },  // Social
+      { source: 4, target: 8, value: 8 },  // Signals
+      { source: 5, target: 8, value: 5 },  // Imagery
+      { source: 6, target: 8, value: 3 },  // Human Reports
+      { source: 7, target: 8, value: 6 }   // Cyber
     ]
   };
 
+  // --- Map source -> INT type + particle styling ---
+  const feedTypeByNode = {
+    'Telemetry': 'MASINT',
+    'NOTAMs'  : 'GEOINT',
+    'Press'   : 'OSINT',
+    'Social'  : 'OSINT',
+    'Signals' : 'SIGINT',
+    'Imagery' : 'IMINT',
+    'Human Reports': 'HUMINT',
+    'Cyber'   : 'CYBINT'
+  };
+  // Keep palette; vary size/speed/volume. OSINT = smaller, faster, higher volume.
+  const feedStyle = {
+    OSINT: { sizeMul: 0.85, speed: 0.0016, rateMul: 1.6 },
+    GEOINT:{ sizeMul: 1.15, speed: 0.0011, rateMul: 0.9  },
+    MASINT:{ sizeMul: 1.45, speed: 0.0010, rateMul: 0.7  },
+    SIGINT:{ sizeMul: 1.20, speed: 0.0012, rateMul: 1.0  },
+    IMINT: { sizeMul: 1.25, speed: 0.0009, rateMul: 0.6  },
+    HUMINT:{ sizeMul: 1.35, speed: 0.0007, rateMul: 0.4  },
+    CYBINT:{ sizeMul: 1.00, speed: 0.0013, rateMul: 1.2  }
+  };
+
+  // Extend color palette to cover all nodes (keeps your original hues first)
+  const palette = ['#57b6ff','#ffd166','#a4f9c8','#d7aefb','#7ea0ff','#9ad7ff','#ffe08a','#c8ffe6','#e7c4ff','#aebfff'];
   const color = d3.scaleOrdinal()
     .domain(sankeyData.nodes.map(d=>d.name))
-    .range(['#57b6ff','#ffd166','#a4f9c8','#d7aefb','#7ea0ff']);
+    .range(palette.slice(0, sankeyData.nodes.length));
 
-  const sankey = d3.sankey().nodeWidth(6).nodePadding(36).size([STAGE_W-120, STAGE_H-40]);
+  // Sankey layout
+  const sankey = d3.sankey().nodeWidth(18).nodePadding(20).size([STAGE_W-40, STAGE_H-40]);
   const graph = sankey({ nodes: sankeyData.nodes.map(d => ({...d})), links: sankeyData.links.map(d => ({...d})) });
 
-  svg.append('g').selectAll('circle').data(graph.nodes).join('circle')
-    .attr('cx', d => d.x0 + 6).attr('cy', d => (d.y0 + d.y1)/2).attr('r', 8)
-    .attr('fill', d => color(d.name)).attr('stroke', '#0d0f14').attr('stroke-width', 2);
-
-  svg.append('g').selectAll('text').data(graph.nodes).join('text')
-    .attr('x', d => d.x0 - 10).attr('y', d => (d.y0 + d.y1)/2)
-    .attr('text-anchor','end').attr('dominant-baseline','middle')
-    .attr('fill','#b9c2d0').style('font-size','13px').text(d => d.name);
-
+  // Links (behind nodes)
   const linkGen = d3.sankeyLinkHorizontal();
-  const linkG = svg.append('g');
+  const linkG = svg.append('g').lower();
   const linkPaths = linkG.selectAll('path.link').data(graph.links).join('path')
-    .attr('class','link').attr('d', linkGen).attr('stroke-width', d => Math.max(1, d.width)).attr('stroke-opacity', 0.16);
+    .attr('class','link').attr('d', linkGen)
+    .attr('stroke', '#888').attr('stroke-width', d => Math.max(1, d.width)).attr('stroke-opacity', 0.22).attr('fill','none');
 
+  // Nodes as blocks (rectangles) with labels
+  const nodeG = svg.append('g').selectAll('g.node').data(graph.nodes).join('g')
+    .attr('class','node')
+    .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+  nodeG.append('rect')
+    .attr('height', d => Math.max(8, d.y1 - d.y0))
+    .attr('width', sankey.nodeWidth())
+    .attr('rx', 3).attr('ry', 3)
+    .attr('fill', d => color(d.name));
+
+  nodeG.append('text')
+    .attr('x', d => d.x0 < (STAGE_W/2) ? sankey.nodeWidth()+6 : -6)  // left nodes: text on right; right node: text on left
+    .attr('y', d => (d.y1 - d.y0)/2)
+    .attr('dy', '0.35em')
+    .attr('text-anchor', d => d.x0 < (STAGE_W/2) ? 'start' : 'end')
+    .attr('fill','#cfe0ff')
+    .style('font-size','12px')
+    .text(d => d.name);
+
+  // INT-type pill tags next to each inbound source
+  const feedNodes = graph.nodes.filter(n => n.name !== 'Fusion Core');
+  const tagG = svg.append('g').attr('class','feed-tags');
+  const tagSel = tagG.selectAll('g.feed-tag').data(feedNodes).join('g').attr('class','feed-tag');
+
+  // Pill text
+  tagSel.append('text')
+    .attr('x', d => d.x0 + sankey.nodeWidth() + 10)
+    .attr('y', d => d.y0 + (d.y1 - d.y0)/2 - 14)
+    .attr('fill', '#e4ebf7')
+    .style('font-size','11px')
+    .text(d => feedTypeByNode[d.name] || '');
+
+  // Pill background
+  tagSel.each(function(){
+    const t = d3.select(this).select('text');
+    const bb = t.node().getBBox();
+    d3.select(this).insert('rect','text')
+      .attr('x', bb.x - 6).attr('y', bb.y - 3)
+      .attr('rx', 6).attr('ry', 6)
+      .attr('width', bb.width + 12).attr('height', bb.height + 6)
+      .attr('fill', 'rgba(13,15,20,0.85)')
+      .attr('stroke', '#2a3242').attr('stroke-width', 1);
+  });
+
+  // --- Particles (per-feed size/speed/volume) ---
   let particles = [];
-  let pings = []; // highlight rings for selected particles
+  let pings = [];
   let tPrev = performance.now();
-  const MAX_AGE = 1600, SPEED = 0.0012;
+  const MAX_AGE = 1600;
 
   const valExtent = d3.extent(graph.links, d => d.value);
-  const freqScale = d3.scaleLinear().domain(valExtent).range([1, 120]);
-  const sizeScale = d3.scaleLinear().domain(valExtent).range([1.25, 3.6]);
+  const baseFreq = d3.scaleLinear().domain(valExtent).range([1, 120]);
+  const baseSize = d3.scaleLinear().domain(valExtent).range([1.4, 3.6]);
 
   const linksMeta = linkPaths.nodes().map((pathEl, i) => {
     const dl = graph.links[i];
-    return { pathEl, value: dl.value, colorA: color(dl.source.name), colorB: color(dl.target.name), width: dl.width, freq: freqScale(dl.value), size: sizeScale(dl.value) };
+    const type = feedTypeByNode[dl.source.name] || 'OSINT';
+    const style = feedStyle[type];
+    return {
+      pathEl,
+      type,
+      style,
+      value: dl.value,
+      colorA: color(dl.source.name),
+      colorB: color(dl.target.name),
+      width: dl.width,
+      freq: Math.max(1, Math.min(120, Math.round(baseFreq(dl.value) * style.rateMul))),
+      size: baseSize(dl.value) * style.sizeMul,
+      speed: style.speed
+    };
   });
 
   let freqCounter = 1;
   function animateFlow(now){
     const dt = now - tPrev; tPrev = now;
     particles = particles.filter(p => (now - p.born) < MAX_AGE);
-    if (++freqCounter>120) freqCounter=1;
-    linksMeta.forEach(m => { if (m.freq >= freqCounter) { const offset = (Math.random()-0.5) * m.width; particles.push({ meta:m, born:now, offset, t:0 }); } });
 
+    if (++freqCounter>120) freqCounter=1;
+    linksMeta.forEach(m => {
+      if (m.freq >= freqCounter) {
+        const offset = (Math.random()-0.5) * m.width;
+        particles.push({ meta:m, born:now, offset, t:0, speed:m.speed });
+      }
+    });
+
+    // draw
     const ctxW = ctx.canvas.width, ctxH = ctx.canvas.height;
     ctx.clearRect(0,0,ctxW,ctxH);
     ctx.globalCompositeOperation='lighter'; ctx.shadowBlur = 6;
+
     particles.forEach(p => {
-      p.t = Math.min(1, p.t + dt*SPEED);
+      p.t = Math.min(1, p.t + dt * p.speed);
       const L = p.meta.pathEl.getTotalLength();
       const pos = p.meta.pathEl.getPointAtLength(p.t * L);
       const c = d3.interpolateRgb(p.meta.colorA, p.meta.colorB)(p.t);
-      ctx.beginPath(); ctx.fillStyle = c; ctx.shadowColor = c; ctx.arc(pos.x, pos.y + p.offset, p.meta.size, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.fillStyle = c; ctx.shadowColor = c;
+      ctx.arc(pos.x, pos.y + p.offset, p.meta.size, 0, Math.PI*2); ctx.fill();
     });
 
-    // draw focus rings (pings)
+    // focus rings
     if (pings.length){
       ctx.globalCompositeOperation='screen'; ctx.shadowBlur = 0;
       pings = pings.filter(pg => (now - pg.born) < 1200);
@@ -202,62 +294,52 @@ async function main(){
   }
   requestAnimationFrame(animateFlow);
 
-  // ---------- Particle helpers ----------
+  // Helpers for zoom/fly
   function particlePos(p){
     const L = p.meta.pathEl.getTotalLength();
     const pos = p.meta.pathEl.getPointAtLength(Math.min(1, p.t) * L);
     return { x: pos.x, y: pos.y + p.offset };
   }
-
   function pickTwoLiveParticles(){
     if (particles.length < 2) return null;
-    const idxs = new Set();
-    while (idxs.size < 2) idxs.add(Math.floor(Math.random()*particles.length));
-    const out = [...idxs].map(i => particles[i]);
-    return out;
+    const idxs = new Set(); while (idxs.size < 2) idxs.add(Math.floor(Math.random()*particles.length));
+    return [...idxs].map(i => particles[i]);
   }
-
   function twoTrackers(){
-    // Try live particles; else create two virtual trackers that move along two links
     const live = pickTwoLiveParticles();
-    if (live){
-      return live.map(p => ({type:'live', p, color: d3.interpolateRgb(p.meta.colorA, p.meta.colorB)(p.t)}));
-    }
+    if (live){ return live.map(p => ({type:'live', p, color: d3.interpolateRgb(p.meta.colorA, p.meta.colorB)(p.t)})); }
     const linkA = linksMeta[0], linkB = linksMeta[1] || linksMeta[0];
-    const v1 = { type:'virtual', meta: linkA, t: 0.35, speed: 0.0008, offset: 0, color: linkA.colorA };
-    const v2 = { type:'virtual', meta: linkB, t: 0.55, speed: 0.0008, offset: 0, color: linkB.colorB };
-    return [v1, v2];
+    return [
+      { type:'virtual', meta: linkA, t: 0.35, speed: linkA.speed, offset: 0, color: linkA.colorA },
+      { type:'virtual', meta: linkB, t: 0.55, speed: linkB.speed, offset: 0, color: linkB.colorB }
+    ];
   }
-
   function trackerPos(tr){
     if (tr.type==='live'){ return particlePos(tr.p); }
-    tr.t = Math.min(1, tr.t + tr.speed * 16.6); // advance a bit per frame (~60fps assumption)
+    tr.t = Math.min(1, tr.t + tr.speed * 16.6);
     const L = tr.meta.pathEl.getTotalLength();
     const pos = tr.meta.pathEl.getPointAtLength(tr.t * L);
     return { x: pos.x, y: pos.y + (tr.offset||0) };
   }
 
-  // ---------- 2D camera dolly (translate+scale flowPane) ----------
+  // 2D camera dolly
   let dollyRAF = null;
   function resetFlowCamera(){ flowPane.style.transform = ''; }
-
   function flyAlongTwo(trackers, duration=1500){
     const tStart = performance.now();
-    const ease = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2; // easeInOutCubic
+    const ease = t => t<.5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3)/2;
     cancelAnimationFrame(dollyRAF);
-
     function step(){
       const now = performance.now();
       const u = Math.min(1, (now - tStart)/duration);
       const e = ease(u);
-      // positions
       const p1 = trackerPos(trackers[0]);
       const p2 = trackerPos(trackers[1]);
       const cx = (p1.x + p2.x)/2, cy = (p1.y + p2.y)/2;
       const dist = Math.max(40, Math.hypot(p1.x-p2.x, p1.y-p2.y));
       const minSide = Math.min(STAGE_W, STAGE_H);
       const targetScale = Math.min(3.2, Math.max(1, (0.45*minSide) / dist));
-      const s = 1 + (targetScale - 1) * e; // ramp scale
+      const s = 1 + (targetScale - 1) * e;
       const dx = (STAGE_W/(2*s)) - cx;
       const dy = (STAGE_H/(2*s)) - cy;
       flowPane.style.transform = `translate(${dx.toFixed(3)}px, ${dy.toFixed(3)}px) scale(${s.toFixed(3)})`;
@@ -266,10 +348,8 @@ async function main(){
     dollyRAF = requestAnimationFrame(step);
   }
 
-  // ---------------------------
-  // 3D MOLECULE GRAPH (enhanced fusion visuals)
-  // ---------------------------
-  let __G = null; // store instance so we can tear down on Back
+  // 3D force-graph
+  let __G = null;
   function teardown3D(){
     try{ __G && __G.pauseAnimation && __G.pauseAnimation(); }catch(e){}
     scene3d.innerHTML = '';
@@ -284,8 +364,8 @@ async function main(){
     const coreA = { id: 'Record A', core:true, color: coreAColor };
     const coreB = { id: 'Record B', core:true, color: coreBColor };
 
-    const attrsA = ['time', 'site', 'vehicle', 'payload', 'source', 'sentiment'].map((k,i)=>({ id:`A:${k}`, label:k, color:'#8bd5ff', startX:-180 - i*10, targetX:-25 - (i*2), side:'left' }));
-    const attrsB = ['mission', 'customer', 'window', 'launchpad', 'lat/lon'].map((k,i)=>({ id:`B:${k}`, label:k, color:'#d9b6ff', startX:  60 + i*8,  targetX:  20 + (i*3), side:'right' }));
+    const attrsA = ['time','site','vehicle','payload','source','sentiment'].map((k,i)=>({ id:`A:${k}`, label:k, color:'#8bd5ff', startX:-180 - i*10, targetX:-25 - (i*2), side:'left' }));
+    const attrsB = ['mission','customer','window','launchpad','lat/lon'].map((k,i)=>({ id:`B:${k}`, label:k, color:'#d9b6ff', startX:60 + i*8, targetX:20 + (i*3), side:'right' }));
 
     const nodes = [coreA, coreB, ...attrsA, ...attrsB];
     const links = [
@@ -296,7 +376,7 @@ async function main(){
     let phase = 'ingest';
     let t0 = performance.now();
     let cameraNudged = false;
-    window.__fusionPairsFormed = false; // for tests
+    window.__fusionPairsFormed = false;
 
     function animateAttributes(Graph){
       const t = performance.now() - t0;
@@ -313,10 +393,14 @@ async function main(){
         let anyNew=false;
         pairs.forEach(([u,v]) => {
           if (!links.some(L=> (L.source.id||L.source)===u && (L.target.id||L.target)===v)){
-            links.push({ source: u, target: v, color:'#9ad7ff', fused:true }); anyNew=true;
+            links.push({ source: u, target: v, color:'#d4af37', fused:true }); anyNew=true; // gold
           }
         });
-        if (anyNew){ Graph.linkDirectionalParticles(l => l.fused? 4 : 0); Graph.linkDirectionalParticleWidth(2); Graph.linkDirectionalParticleSpeed(0.004); window.__fusionPairsFormed = true; }
+        if (anyNew){
+          // No directional particles in force graph — binding, not flow
+          Graph.linkDirectionalParticles(0);
+          window.__fusionPairsFormed = true;
+        }
 
         Graph.graphData({ nodes, links });
         if (!cameraNudged){ Graph.cameraPosition({x:0,y:0,z:70}, {x:0,y:0,z:0}, 1600); cameraNudged=true; }
@@ -324,50 +408,49 @@ async function main(){
       }
     }
 
-    // --- label helpers (agents.html-style canvas text sprites)
-function makeTextTexture(text, opts){
-  const options = Object.assign({ font: '14px Arial', fill: '#FFFFFF', padding: 6, stroke: 'rgba(0,0,0,0.6)', strokeWidth: 4 }, opts||{});
-  const ctx2d = document.createElement('canvas').getContext('2d');
-  ctx2d.font = options.font;
-  const metrics = ctx2d.measureText(text);
-  const textW = Math.ceil(metrics.width);
-  const textH = Math.ceil(parseInt(options.font, 10) * 1.35);
-  const w = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textW + options.padding * 2))));
-  const h = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textH + options.padding * 2))));
-  ctx2d.canvas.width = w; ctx2d.canvas.height = h;
-  ctx2d.font = options.font; ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'middle';
-  if (options.stroke && options.strokeWidth) { ctx2d.strokeStyle = options.stroke; ctx2d.lineWidth = options.strokeWidth; ctx2d.strokeText(text, w/2, h/2); }
-  ctx2d.fillStyle = options.fill; ctx2d.fillText(text, w/2, h/2);
-  const tex = new THREE.CanvasTexture(ctx2d.canvas);
-  tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
-  return { texture: tex, w, h };
-}
-
-const G = ForceGraph3D()(scene3d)
-  .backgroundColor('#000')
-  .nodeOpacity(0.95)
-  .linkOpacity(0.45)
-  .linkWidth(l => l.fused? 1.4 : 0.6)
-  .linkColor(l => l.fused? '#9ad7ff' : 'rgba(200,200,255,0.25)')
-  .nodeThreeObject(node => {
-    const geom = new THREE.SphereGeometry(node.core ? 7 : 4, 16, 16);
-    const mat = new THREE.MeshLambertMaterial({ color: node.color, emissive: node.core ? 0x223355 : 0x111120, transparent:true, opacity:node.core?0.95:0.85});
-    const mesh = new THREE.Mesh(geom, mat);
-    // agents.html-style persistent label using a canvas texture sprite
-    const labelText = (node.label || node.id || '').toString();
-    if (labelText) {
-      const { texture, w, h } = makeTextTexture(labelText, { font: node.core ? '16px Arial' : '14px Arial', fill: '#FFFFFF' });
-      const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
-      const worldPerPixel = 0.12; // controls label size in world units
-      sprite.scale.set(w * worldPerPixel, h * worldPerPixel, 1);
-      sprite.position.set(0, node.core ? 11 : 8, 0);
-      mesh.add(sprite);
+    // label sprites (agents.html style)
+    function makeTextTexture(text, opts){
+      const options = Object.assign({ font:'14px Arial', fill:'#FFFFFF', padding:6, stroke:'rgba(0,0,0,0.6)', strokeWidth:4 }, opts||{});
+      const ctx2d = document.createElement('canvas').getContext('2d');
+      ctx2d.font = options.font;
+      const metrics = ctx2d.measureText(text);
+      const textW = Math.ceil(metrics.width);
+      const textH = Math.ceil(parseInt(options.font, 10) * 1.35);
+      const w = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textW + options.padding * 2))));
+      const h = Math.pow(2, Math.ceil(Math.log2(Math.max(2, textH + options.padding * 2))));
+      ctx2d.canvas.width = w; ctx2d.canvas.height = h;
+      ctx2d.font = options.font; ctx2d.textAlign='center'; ctx2d.textBaseline='middle';
+      if (options.stroke && options.strokeWidth) { ctx2d.strokeStyle = options.stroke; ctx2d.lineWidth = options.strokeWidth; ctx2d.strokeText(text, w/2, h/2); }
+      ctx2d.fillStyle = options.fill; ctx2d.fillText(text, w/2, h/2);
+      const tex = new THREE.CanvasTexture(ctx2d.canvas);
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter; tex.needsUpdate = true;
+      return { texture: tex, w, h };
     }
-    return mesh;
-  })
-  .nodeLabel(n => n.label || n.id)
-  .onNodeDragEnd(node => { node.fx = node.x; node.fy = node.y; node.fz = node.z; })
-  .cameraPosition({x:0,y:0,z:110});
+
+    const G = ForceGraph3D()(scene3d)
+      .backgroundColor('#000')
+      .nodeOpacity(0.95)
+      .linkOpacity(0.6)
+      .linkWidth(l => l.fused? 1.6 : 0.6)
+      .linkColor(l => l.fused? '#d4af37' : 'rgba(200,200,255,0.25)')  // gold for fused
+      .nodeThreeObject(node => {
+        const geom = new THREE.SphereGeometry(node.core ? 7 : 4, 16, 16);
+        const mat = new THREE.MeshLambertMaterial({ color: node.color, emissive: node.core ? 0x223355 : 0x111120, transparent:true, opacity:node.core?0.95:0.85});
+        const mesh = new THREE.Mesh(geom, mat);
+        const labelText = (node.label || node.id || '').toString();
+        if (labelText) {
+          const { texture, w, h } = makeTextTexture(labelText, { font: node.core ? '16px Arial' : '14px Arial', fill: '#FFFFFF' });
+          const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+          const worldPerPixel = 0.12;
+          sprite.scale.set(w * worldPerPixel, h * worldPerPixel, 1);
+          sprite.position.set(0, node.core ? 11 : 8, 0);
+          mesh.add(sprite);
+        }
+        return mesh;
+      })
+      .nodeLabel(n => n.label || n.id)
+      .onNodeDragEnd(node => { node.fx = node.x; node.fy = node.y; node.fz = node.z; })
+      .cameraPosition({x:0,y:0,z:110});
 
     __G = G;
 
@@ -381,38 +464,33 @@ const G = ForceGraph3D()(scene3d)
         const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(scene3d.clientWidth, scene3d.clientHeight), 1.2, 0.85, 0.01);
         composer.addPass(bloom);
       }
-    }catch(e){ /* ignore */ }
+    }catch(e){}
 
-    nodes.forEach(n => { if (n.core){ Object.assign(n, { x: n.id==='Record A' ? -25 : 25, y: 0, z: 0 }); } else { Object.assign(n, { x: n.startX, y: (Math.random()-0.5)*40, z: (Math.random()-0.5)*20 }); } });
+    nodes.forEach(n => {
+      if (n.core){ Object.assign(n, { x: n.id==='Record A' ? -25 : 25, y: 0, z: 0 }); }
+      else { Object.assign(n, { x: n.startX, y: (Math.random()-0.5)*40, z: (Math.random()-0.5)*20 }); }
+    });
     G.graphData({ nodes, links });
     G.onEngineTick(() => animateAttributes(G));
   }
 
-  // ---------------------------
-  // Zoom path: fly along TWO particles → wipe → 3D
-  // ---------------------------
+  // Zoom path: fly → wipe → 3D
   window.__lastPickedParticles = [];
   let lastWipe = {cx:0, cy:0, r:300};
   function zoomToTwoParticles(){
     const trackers = twoTrackers();
     window.__lastPickedParticles = trackers;
-
     trackers.map(trackerPos).forEach(p => pings.push({x:p.x, y:p.y, born:performance.now()}));
-
     flyAlongTwo(trackers, 1500);
-
     setTimeout(() => {
-      const a = trackerPos(trackers[0]);
-      const b = trackerPos(trackers[1]);
+      const a = trackerPos(trackers[0]); const b = trackerPos(trackers[1]);
       const cx = (a.x + b.x)/2, cy = (a.y + b.y)/2;
       const dist = Math.hypot(a.x-b.x, a.y-b.y);
       const stageRect = document.getElementById('stage').getBoundingClientRect();
       const coverR = Math.max(Math.hypot(stageRect.width, stageRect.height)/2, dist/2 + 120);
       lastWipe = {cx, cy, r:coverR};
-
       wipe.style.transform = `translate(${cx-20}px, ${cy-20}px) scale(0.2)`; wipe.classList.add('wipe-active');
       requestAnimationFrame(() => { wipe.style.transform = `translate(${cx-20}px, ${cy-20}px) scale(${coverR/20})`; });
-
       setTimeout(() => {
         scene3d.classList.add('show');
         const cA = trackers[0].type==='live' ? d3.interpolateRgb(trackers[0].p.meta.colorA, trackers[0].p.meta.colorB)(trackers[0].p.t) : trackers[0].color;
@@ -423,8 +501,7 @@ const G = ForceGraph3D()(scene3d)
     }, 1500);
   }
 
-  // Back: tear down 3D, reverse wipe, reset camera
-  function zoomBackToStream(){
+  function teardown3DAndReset(){
     teardown3D();
     wipe.style.transform = `translate(${lastWipe.cx-20}px, ${lastWipe.cy-20}px) scale(${lastWipe.r/20})`;
     requestAnimationFrame(() => { wipe.style.transform = `translate(${lastWipe.cx-20}px, ${lastWipe.cy-20}px) scale(0.2)`; });
@@ -432,21 +509,16 @@ const G = ForceGraph3D()(scene3d)
   }
 
   btnZoom.addEventListener('click', zoomToTwoParticles);
-  btnBack.addEventListener('click', zoomBackToStream);
+  btnBack.addEventListener('click', teardown3DAndReset);
   btnReset.addEventListener('click', () => window.location.reload());
   btnTest.addEventListener('click', runSelfTest);
 
-  // ---------------------------
-  // Self‑tests (expanded)
-  // ---------------------------
+  // Self-tests
   async function runSelfTest(){
     __lastError = null; const hud = document.getElementById('hud'); const asserts = [];
-    // Header always visible & full width
-    const header = document.querySelector('.header');
-    const hr = header.getBoundingClientRect();
+    const header = document.querySelector('.header'); const hr = header.getBoundingClientRect();
     asserts.push({ name: 'Header present', pass: !!header });
     asserts.push({ name: 'Header spans width', pass: Math.round(hr.width) >= Math.round(window.innerWidth*0.95) });
-
     asserts.push({ name: 'THREE present', pass: !!window.THREE });
     asserts.push({ name: 'ForceGraph3D present', pass: !!window.ForceGraph3D });
     let meshOK = false; try { const m = new THREE.Mesh(new THREE.SphereGeometry(1), new THREE.MeshBasicMaterial()); meshOK = !!m; } catch(e){ meshOK = false; }
@@ -456,8 +528,7 @@ const G = ForceGraph3D()(scene3d)
     await new Promise(r => setTimeout(r, 2700));
     asserts.push({ name: 'Picked two trackers', pass: Array.isArray(window.__lastPickedParticles) && window.__lastPickedParticles.length===2 });
     await new Promise(r => setTimeout(r, 1200));
-    const shown = scene3d.classList.contains('show');
-    asserts.push({ name: '3D scene shown after zoom', pass: shown });
+    const shown = scene3d.classList.contains('show'); asserts.push({ name: '3D scene shown after zoom', pass: shown });
     await new Promise(r => setTimeout(r, 3500));
     asserts.push({ name: 'Fusion pairs formed', pass: !!window.__fusionPairsFormed });
 
@@ -468,7 +539,7 @@ const G = ForceGraph3D()(scene3d)
 
     asserts.push({ name: 'No global error during test', pass: !__lastError });
     const failed = asserts.filter(a=>!a.pass);
-    hud.textContent = failed.length ? `Self‑test FAIL ❌: ${failed.map(a=>a.name).join(', ')}${__lastError? ' | '+__lastError:''}` : 'Self‑test PASS ✅';
+    hud.textContent = failed.length ? `Self-test FAIL ❌: ${failed.map(a=>a.name).join(', ')}${__lastError? ' | '+__lastError:''}` : 'Self-test PASS ✅';
   }
 }
 
